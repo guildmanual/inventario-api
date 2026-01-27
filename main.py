@@ -9,7 +9,7 @@ app = FastAPI()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Token fixo - SUBSTITUA pelo token correto (o que está no banco)
-VALID_TOKEN = "tech365_57f0b5084b412e1e8c73152709909d"
+VALID_TOKEN = os.environ.get("VALID_TOKEN")  # Seguro!
 
 class ComputadorData(BaseModel):
     hostname: str
