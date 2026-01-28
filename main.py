@@ -1,16 +1,14 @@
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
-import psycopg2  # ← MUDOU AQUI
-from psycopg2.extras import RealDictCursor  # ← ADICIONOU
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from typing import Optional
 
 app = FastAPI()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-
-# Token fixo - SUBSTITUA pelo token correto (o que está no banco)
-VALID_TOKEN = os.environ.get("VALID_TOKEN")  # Seguro!
+VALID_TOKEN = os.environ.get("VALID_TOKEN")
 
 class ComputadorData(BaseModel):
     hostname: str
@@ -21,7 +19,6 @@ class ComputadorData(BaseModel):
 
 @app.post("/api/inventario")
 async def receber_dados(dados: ComputadorData, authorization: Optional[str] = Header(None)):
-    # Verificação simples do token
     if not authorization or authorization != f"Bearer {VALID_TOKEN}":
         raise HTTPException(status_code=401, detail="Não autorizado")
     
@@ -30,16 +27,15 @@ async def receber_dados(dados: ComputadorData, authorization: Optional[str] = He
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO computadores 
-            (hostname, sistema_operacional, usuario, memoria_gb, processador, ultima_coleta)
-            VALUES (%s, %s, %s, %s, %s, NOW())
+            (hostname, sistema_operacional, memoria_gb, processador, ultima_coleta)
+            VALUES (%s, %s, %s, %s, NOW())
             ON CONFLICT (hostname) DO UPDATE SET
             sistema_operacional = EXCLUDED.sistema_operacional,
-            usuario = EXCLUDED.usuario,
             memoria_gb = EXCLUDED.memoria_gb,
             processador = EXCLUDED.processador,
             ultima_coleta = NOW()
         ''', 
-        (dados.hostname, dados.sistema_operacional, dados.usuario,
+        (dados.hostname, dados.sistema_operacional,
          dados.memoria_gb, dados.processador))
         
         conn.commit()
