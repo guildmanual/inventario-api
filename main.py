@@ -68,7 +68,44 @@ async def listar_computadores(authorization: Optional[str] = Header(None)):
         return {"computadores": computadores}
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
+# ========== NOVAS ROTAS ==========
 
+@app.get("/api/historico")
+def get_historico(authorization: Optional[str] = Header(None)):
+    if not authorization or authorization != f"Bearer {VALID_TOKEN}":
+        raise HTTPException(status_code=401, detail="Não autorizado")
+    
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM computadores ORDER BY ultima_coleta DESC")
+        historico = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return {"historico": historico}
+    except Exception as e:
+        return {"status": "erro", "mensagem": str(e)}
+
+@app.get("/api/ativos")
+def get_ativos(authorization: Optional[str] = Header(None)):
+    if not authorization or authorization != f"Bearer {VALID_TOKEN}":
+        raise HTTPException(status_code=401, detail="Não autorizado")
+    
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            SELECT DISTINCT ON (hostname) *
+            FROM computadores 
+            ORDER BY hostname, ultima_coleta DESC
+        """)
+        ativos = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return {"ativos": ativos}
+    except Exception as e:
+        return {"status": "erro", "mensagem": str(e)}
+        
 @app.get("/")
 async def root():
     return {"mensagem": "API Inventário Tech365 - BACEN"}
