@@ -6,6 +6,13 @@ import os
 from typing import Optional
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://guildmanual.github.io"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 VALID_TOKEN = os.environ.get("VALID_TOKEN")
