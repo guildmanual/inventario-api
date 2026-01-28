@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
-import asyncpg
+import psycopg2  # ← MUDOU AQUI
+from psycopg2.extras import RealDictCursor  # ← ADICIONOU
 import os
 from typing import Optional
 
@@ -25,11 +26,12 @@ async def receber_dados(dados: ComputadorData, authorization: Optional[str] = He
         raise HTTPException(status_code=401, detail="Não autorizado")
     
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        await conn.execute('''
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        cursor.execute('''
             INSERT INTO computadores 
             (hostname, sistema_operacional, usuario, memoria_gb, processador, ultima_coleta)
-            VALUES ($1, $2, $3, $4, $5, NOW())
+            VALUES (%s, %s, %s, %s, %s, NOW())
             ON CONFLICT (hostname) DO UPDATE SET
             sistema_operacional = EXCLUDED.sistema_operacional,
             usuario = EXCLUDED.usuario,
@@ -37,10 +39,12 @@ async def receber_dados(dados: ComputadorData, authorization: Optional[str] = He
             processador = EXCLUDED.processador,
             ultima_coleta = NOW()
         ''', 
-        dados.hostname, dados.sistema_operacional, dados.usuario,
-        dados.memoria_gb, dados.processador)
+        (dados.hostname, dados.sistema_operacional, dados.usuario,
+         dados.memoria_gb, dados.processador))
         
-        await conn.close()
+        conn.commit()
+        cursor.close()
+        conn.close()
         return {"status": "sucesso", "mensagem": "Dados recebidos"}
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
@@ -51,9 +55,12 @@ async def listar_computadores(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Não autorizado")
     
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        computadores = await conn.fetch("SELECT * FROM computadores ORDER BY ultima_coleta DESC")
-        await conn.close()
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT * FROM computadores ORDER BY ultima_coleta DESC")
+        computadores = cursor.fetchall()
+        cursor.close()
+        conn.close()
         return {"computadores": computadores}
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
